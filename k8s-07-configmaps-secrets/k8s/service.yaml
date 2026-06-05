@@ -1,0 +1,18 @@
+# Service for ConfigMaps & Secrets Demo
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-demo-service
+  namespace: default
+  labels:
+    app: config-demo
+spec:
+  type: ClusterIP
+  selector:
+    app: config-demo
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http

@@ -1,0 +1,55 @@
+# ConfigMap for files
+# ConfigMaps can also store entire files
+# These files can be mounted as volumes in pods
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-files
+  namespace: default
+  labels:
+    app: config-demo
+data:
+  # Multi-line configuration file
+  # This will be mounted as /etc/config/app.properties
+  app.properties: |
+    # Application Properties
+    app.name=ConfigMap Demo
+    app.version=1.0.0
+    app.description=Demonstrating ConfigMaps with file mounts
+    
+    # Database Configuration (non-sensitive)
+    db.host=postgres-service
+    db.port=5432
+    db.name=myapp
+    db.pool.min=5
+    db.pool.max=20
+    
+    # Cache Configuration
+    cache.enabled=true
+    cache.ttl=3600
+    cache.provider=redis
+  
+  # JSON configuration file
+  # This will be mounted as /etc/config/features.json
+  features.json: |
+    {
+      "features": {
+        "new_ui": {
+          "enabled": true,
+          "rollout_percentage": 50
+        },
+        "beta_api": {
+          "enabled": false,
+          "rollout_percentage": 0
+        },
+        "advanced_analytics": {
+          "enabled": true,
+          "rollout_percentage": 100
+        }
+      },
+      "limits": {
+        "max_requests_per_minute": 1000,
+        "max_concurrent_connections": 500
+      }
+    }

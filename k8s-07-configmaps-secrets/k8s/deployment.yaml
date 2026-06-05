@@ -1,0 +1,89 @@
+# Deployment demonstrating ConfigMaps and Secrets
+# Shows multiple ways to use configuration:
+# 1. Environment variables from ConfigMaps
+# 2. Environment variables from Secrets
+# 3. Volume mounts from ConfigMaps
+# 4. Volume mounts from Secrets
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-demo-app
+  namespace: default
+  labels:
+    app: config-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: config-demo
+  template:
+    metadata:
+      labels:
+        app: config-demo
+    spec:
+      containers:
+      - name: app
+        image: config-demo:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        
+        # Method 1: Environment variables from ConfigMap
+        # Each key in the ConfigMap becomes an environment variable
+        envFrom:
+        - configMapRef:
+            name: app-config
+        
+        # Method 2: Environment variables from Secret
+        # Each key in the Secret becomes an environment variable
+        - secretRef:
+            name: app-secrets
+        
+        # Method 3: Individual env vars from ConfigMap/Secret
+        # More granular control - pick specific keys
+        env:
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets-stringdata
+              key: JWT_SECRET
+        
+        - name: OAUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets-stringdata
+              key: OAUTH_CLIENT_SECRET
+        
+        # Method 4: Volume mounts from ConfigMap
+        # Mount entire ConfigMap as files
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
+          readOnly: true
+        
+        # Method 5: Volume mounts from Secret
+        # Mount entire Secret as files
+        - name: secrets-volume
+          mountPath: /etc/secrets
+          readOnly: true
+        
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      
+      # Define volumes from ConfigMaps and Secrets
+      volumes:
+      - name: config-volume
+        configMap:
+          name: app-config-files
+      
+      - name: secrets-volume
+        secret:
+          secretName: app-secrets-files
+          defaultMode: 0400  # Read-only for owner (security best practice)

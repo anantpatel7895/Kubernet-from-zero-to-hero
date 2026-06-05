@@ -1,0 +1,20 @@
+# Updated ConfigMap to demonstrate configuration changes
+# After applying this, we'll see how pods react to ConfigMap changes
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: default
+  labels:
+    app: config-demo
+data:
+  # Updated values - changed some settings
+  APP_NAME: "ConfigMap Demo App - UPDATED"
+  ENVIRONMENT: "production"  # Changed from development
+  LOG_LEVEL: "debug"  # Changed from info
+  MAX_CONNECTIONS: "200"  # Increased from 100
+  ENABLE_FEATURE_X: "false"  # Disabled the feature
+  
+  # New key added
+  NEW_SETTING: "This is a new configuration value"

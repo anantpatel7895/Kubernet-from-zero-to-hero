@@ -1,0 +1,24 @@
+# ConfigMap for environment variables
+# ConfigMaps store non-sensitive configuration data in key-value pairs
+# 
+# Use ConfigMaps for:
+# - Application settings
+# - Feature flags
+# - Environment-specific configuration
+# - Any non-sensitive data
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: default
+  labels:
+    app: config-demo
+data:
+  # Simple key-value pairs
+  # These will be injected as environment variables
+  APP_NAME: "ConfigMap Demo App"
+  ENVIRONMENT: "development"
+  LOG_LEVEL: "info"
+  MAX_CONNECTIONS: "100"
+  ENABLE_FEATURE_X: "true"
