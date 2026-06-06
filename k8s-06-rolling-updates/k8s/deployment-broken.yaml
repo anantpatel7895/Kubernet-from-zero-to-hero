@@ -1,0 +1,60 @@
+# Project 06 - BROKEN Deployment (to demonstrate rollbacks)
+#
+# This deployment is INTENTIONALLY BROKEN — it references an image
+# that doesn't exist. We'll apply this on top of our working v2 to
+# show how Kubernetes handles a failed rollout, and how to ROLLBACK
+# to the previous working version.
+#
+# Apply with:  kubectl apply -f k8s/deployment-broken.yaml
+# Watch it fail: kubectl rollout status deployment/rolling-app
+# Rollback:    kubectl rollout undo deployment/rolling-app
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rolling-app
+  labels:
+    app: rolling-app
+    project: k8s-06
+  annotations:
+    kubernetes.io/change-cause: "BROKEN release v9.9.9 (image doesn't exist!)"
+spec:
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  minReadySeconds: 5
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: rolling-app
+  template:
+    metadata:
+      labels:
+        app: rolling-app
+        version: v9-broken
+    spec:
+      containers:
+      - name: fastapi
+        # 💥 THIS IMAGE DOES NOT EXIST!
+        image: fastapi-demo:v9-doesnotexist
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        env:
+        - name: APP_VERSION
+          value: "9.9.9-broken"
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 2
+          periodSeconds: 5

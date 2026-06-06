@@ -1,0 +1,19 @@
+# Service to expose rolling-app
+# We'll use this to verify ZERO downtime during updates by sending
+# continuous requests through the Service while we update.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rolling-service
+  labels:
+    app: rolling-app
+    project: k8s-06
+spec:
+  type: ClusterIP
+  selector:
+    app: rolling-app
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+    protocol: TCP

@@ -1,0 +1,77 @@
+# Project 06 - Rolling Update Deployment (v1 - the starting version)
+#
+# Key fields for rolling updates:
+#   spec.strategy.type: RollingUpdate (default)
+#   spec.strategy.rollingUpdate.maxSurge: 1       (max extra pods during update)
+#   spec.strategy.rollingUpdate.maxUnavailable: 0 (max pods unavailable during update)
+#
+# This config = ZERO DOWNTIME (never drops below desired replicas)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rolling-app
+  labels:
+    app: rolling-app
+    project: k8s-06
+  annotations:
+    # This annotation shows up in `kubectl rollout history`
+    kubernetes.io/change-cause: "Initial deployment v1.0.0"
+spec:
+  replicas: 4
+
+  # 🔑 ROLLING UPDATE STRATEGY (this is the default if omitted)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1          # During update, max 1 EXTRA pod above replicas (5 total)
+      maxUnavailable: 0    # During update, ALL pods must stay available (0 down)
+      # With replicas=4, maxSurge=1, maxUnavailable=0:
+      #  - At any moment: between 4 and 5 pods exist
+      #  - All 4 must be ready (zero downtime)
+
+  # Wait at least 5s after a pod is ready before considering it stable
+  minReadySeconds: 5
+
+  # Keep last 10 ReplicaSets for rollback history
+  revisionHistoryLimit: 10
+
+  selector:
+    matchLabels:
+      app: rolling-app
+  template:
+    metadata:
+      labels:
+        app: rolling-app
+        version: v1     # Helpful for tracking
+    spec:
+      containers:
+      - name: fastapi
+        image: fastapi-demo:v1     # 👈 This is what we'll update later!
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: APP_VERSION
+          value: "1.0.0"
+        - name: ENVIRONMENT
+          value: "rolling-update-demo"
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 2
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10

@@ -1,0 +1,52 @@
+# Deployment for Project 05 - Horizontal Scaling
+# Key point: resources.requests is CRITICAL for HPA to work!
+# HPA calculates CPU usage as: (actual_usage / requested_cpu) * 100%
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scaling-app
+  labels:
+    app: scaling-app
+    project: k8s-05
+spec:
+  replicas: 2  # Start with 2, HPA will scale between min/max
+  selector:
+    matchLabels:
+      app: scaling-app
+  template:
+    metadata:
+      labels:
+        app: scaling-app
+        version: v1
+    spec:
+      containers:
+      - name: fastapi
+        image: fastapi-demo:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: ENVIRONMENT
+          value: "scaling-demo"
+        # 🔑 Resource requests are MANDATORY for HPA!
+        # HPA needs to know what "100% CPU" means for your pod
+        resources:
+          requests:
+            cpu: "100m"      # 0.1 CPU core (100 milli-cores)
+            memory: "128Mi"
+          limits:
+            cpu: "500m"      # 0.5 CPU core max
+            memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5

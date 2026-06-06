@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: self-healing-app    # Name of the Deployment
+  labels:
+    app: self-healing # These labels belong to the Deployment object itself.
+    project: k8s-04
+spec:
+  replicas: 3  # Desired state: ALWAYS 3 pods running
+  selector:
+    matchLabels:
+      app: self-healing # Must match labels in pod template
+  template:
+    metadata:
+      labels:
+        app: self-healing #These labels are applied to the Pods and ReplicaSets created by the Deployment.
+        version: v1
+    spec:
+      containers:
+      - name: fastapi      # Name of the container, not the pod name
+        image: fastapi-demo:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: ENVIRONMENT
+          value: "self-healing-demo"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        # Liveness probe - K8s restarts the container if this fails
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 3
+        # Readiness probe - K8s removes pod from Service if this fails
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 2

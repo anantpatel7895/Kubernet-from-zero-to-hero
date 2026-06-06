@@ -1,0 +1,22 @@
+# A pod that intentionally crashes to demonstrate self-healing
+# Watch how Kubernetes restarts it automatically (CrashLoopBackOff)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: crashing-pod
+  labels:
+    app: crash-demo
+spec:
+  restartPolicy: Always  # Default - restarts container on failure
+  containers:
+  - name: crasher
+    image: busybox:1.36
+    command:
+    - sh
+    - -c
+    - |
+      echo "Container starting at $(date)"
+      echo "Working for 10 seconds..."
+      sleep 10
+      echo "Crashing now!"
+      exit 1

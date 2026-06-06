@@ -1,0 +1,32 @@
+# Namespace for learning environment
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: learning
+  labels:
+    environment: learning
+    project: k8s-training
+---
+# Pod in the learning namespace
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hello-kubernetes-ns
+  namespace: learning
+  labels:
+    app: hello
+    tier: frontend
+    environment: learning
+spec:
+  containers:
+  - name: nginx
+    image: nginx:alpine
+    ports:
+    - containerPort: 80
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "100m"
+      limits:
+        memory: "128Mi"
+        cpu: "200m"

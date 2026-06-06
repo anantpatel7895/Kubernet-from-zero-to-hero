@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-service
+  labels:
+    app: fastapi
+    project: k8s-03
+spec:
+  type: LoadBalancer  # External access via cloud load balancer
+  selector:
+    app: fastapi      # Routes to Pods with this label
+  ports:
+  - port: 8000             # Service port
+    targetPort: 8000       # Pod port
+    protocol: TCP
+    name: http
+  # Note: LoadBalancer creates a NodePort automatically
+  # For local development (Docker Desktop/Minikube/Kind), 
+  # this will stay in <pending> state. Use NodePort instead.

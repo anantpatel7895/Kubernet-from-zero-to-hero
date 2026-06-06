@@ -1,0 +1,31 @@
+# Standalone ReplicaSet (rarely used directly - usually managed by Deployment)
+# This is for educational purposes - to understand what a Deployment creates under the hood
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: standalone-replicaset
+  labels:
+    app: replicaset-demo
+    project: k8s-04
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: replicaset-demo
+  template:
+    metadata:
+      labels:
+        app: replicaset-demo
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25-alpine
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"

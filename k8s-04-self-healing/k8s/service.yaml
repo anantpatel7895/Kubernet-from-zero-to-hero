@@ -1,0 +1,18 @@
+# Service to expose the self-healing deployment
+# So we can test traffic continues even when pods are being recreated
+apiVersion: v1
+kind: Service
+metadata:
+  name: self-healing-service
+  labels:
+    app: self-healing
+    project: k8s-04
+spec:
+  type: ClusterIP
+  selector:
+    app: self-healing
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+    protocol: TCP

@@ -1,0 +1,54 @@
+# Horizontal Pod Autoscaler (HPA)
+# Automatically scales the deployment based on CPU usage.
+#
+# How it works:
+#  - Metrics Server measures CPU usage of each pod every 15s
+#  - HPA controller compares actual vs target every 15s
+#  - Formula: desiredReplicas = ceil(currentReplicas * (currentMetric / targetMetric))
+#  - Example: 2 pods at 90% CPU, target 50% → ceil(2 * (90/50)) = ceil(3.6) = 4 pods
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: scaling-app-hpa
+  labels:
+    app: scaling-app
+    project: k8s-05
+spec:
+  # What to scale
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: scaling-app
+  
+  # Scaling bounds
+  minReplicas: 2    # Never go below 2 (HA baseline)
+  maxReplicas: 10   # Never go above 10 (cost control)
+  
+  # When to scale
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50   # Target: 50% of requested CPU
+                                  # (50% of 100m = 50m per pod)
+  
+  # Optional: Scale behavior (control how fast it scales)
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0    # Scale up immediately
+      policies:
+      - type: Percent
+        value: 100                      # Double pods at most
+        periodSeconds: 15
+      - type: Pods
+        value: 4                        # Add 4 pods at most
+        periodSeconds: 15
+      selectPolicy: Max                 # Use whichever is faster
+    scaleDown:
+      stabilizationWindowSeconds: 60    # Wait 60s before scaling down
+      policies:                          # (avoid flapping)
+      - type: Percent
+        value: 50                       # Remove 50% of pods at most
+        periodSeconds: 60

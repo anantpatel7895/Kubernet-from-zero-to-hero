@@ -1,0 +1,66 @@
+# Project 06 - Recreate Strategy (for COMPARISON)
+#
+# 🚨 This strategy CAUSES DOWNTIME on every update!
+#
+# How it works:
+#   1. Delete ALL existing pods (downtime starts here ❌)
+#   2. Wait for them all to terminate
+#   3. Create NEW pods with new version
+#   4. Wait for them to be ready (downtime ends here)
+#
+# When would you use this?
+#   - Apps that CAN'T run two versions simultaneously
+#     (e.g., database migrations, file locking, singleton processes)
+#   - When you want to FORCE a complete restart
+#
+# For 99% of stateless apps (like APIs), use RollingUpdate instead!
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recreate-app
+  labels:
+    app: recreate-app
+    project: k8s-06
+  annotations:
+    kubernetes.io/change-cause: "Recreate strategy demo - causes downtime"
+spec:
+  replicas: 3
+
+  # 🚨 RECREATE STRATEGY - causes downtime!
+  strategy:
+    type: Recreate
+    # No rollingUpdate config (it would be ignored anyway)
+
+  selector:
+    matchLabels:
+      app: recreate-app
+  template:
+    metadata:
+      labels:
+        app: recreate-app
+        version: v1
+    spec:
+      containers:
+      - name: fastapi
+        image: fastapi-demo:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        env:
+        - name: APP_VERSION
+          value: "1.0.0"
+        - name: ENVIRONMENT
+          value: "recreate-demo"
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 2
+          periodSeconds: 5

@@ -1,0 +1,18 @@
+# ClusterIP service so HPA can hit the pods
+# (Also needed so the load generator can reach the app)
+apiVersion: v1
+kind: Service
+metadata:
+  name: scaling-service
+  labels:
+    app: scaling-app
+    project: k8s-05
+spec:
+  type: ClusterIP
+  selector:
+    app: scaling-app
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
