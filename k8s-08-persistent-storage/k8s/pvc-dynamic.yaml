@@ -1,0 +1,27 @@
+# PersistentVolumeClaim with Dynamic Provisioning
+# The StorageClass will automatically create a PV for this PVC
+# This is the recommended approach for most use cases
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: storage-demo-pvc
+  namespace: default
+  labels:
+    app: storage-demo
+spec:
+  # Access mode - how the volume can be mounted
+  # RWO = ReadWriteOnce (mounted by one node at a time)
+  # RWX = ReadWriteMany (mounted by many nodes)
+  # ROX = ReadOnlyMany (mounted read-only by many nodes)
+  accessModes:
+    - ReadWriteOnce
+  
+  # Storage class to use for dynamic provisioning
+  # If not specified, uses the default StorageClass
+  storageClassName: hostpath
+  
+  # Resource requests
+  resources:
+    requests:
+      storage: 1Gi  # Request 1GB of storage

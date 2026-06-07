@@ -1,0 +1,80 @@
+# StatefulSet with Persistent Storage
+# Each pod gets its OWN unique PVC automatically!
+# Perfect for databases, message queues, and stateful apps
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: stateful-storage-demo
+  namespace: default
+  labels:
+    app: stateful-storage-demo
+spec:
+  serviceName: stateful-storage-service  # Headless service for stable network identity
+  replicas: 3
+  selector:
+    matchLabels:
+      app: stateful-storage-demo
+  template:
+    metadata:
+      labels:
+        app: stateful-storage-demo
+    spec:
+      containers:
+      - name: app
+        image: storage-demo:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        
+        env:
+        - name: STORAGE_PATH
+          value: "/data"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        
+        volumeMounts:
+        - name: data  # Must match volumeClaimTemplates name
+          mountPath: /data
+        
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+  
+  # VolumeClaimTemplates: Each pod gets its own PVC!
+  volumeClaimTemplates:
+  - metadata:
+      name: data  # This name is used in volumeMounts
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: hostpath
+      resources:
+        requests:
+          storage: 500Mi  # Each pod gets 500MB
+
+---
+# Headless Service for StatefulSet
+# Provides stable network identity for each pod
+apiVersion: v1
+kind: Service
+metadata:
+  name: stateful-storage-service
+  namespace: default
+  labels:
+    app: stateful-storage-demo
+spec:
+  clusterIP: None  # Headless service
+  selector:
+    app: stateful-storage-demo
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http

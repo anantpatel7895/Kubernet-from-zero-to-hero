@@ -15,7 +15,7 @@ In this project, you'll learn how to manage application configuration in Kuberne
 ### ConfigMaps
 - Store configuration data as key-value pairs or files
 - Used for non-sensitive data (database URLs, feature flags, etc.)
-- Can be consumed as environment variables or mounted as files
+- Can be consumed as **environment variables** or **mounted as files**
 - Updates to volume-mounted ConfigMaps are auto-synced to pods
 
 ### Secrets
