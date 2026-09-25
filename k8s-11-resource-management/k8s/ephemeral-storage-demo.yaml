@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: disk-demo
+
+spec:
+  containers:
+  - name: app
+
+    image: loadtest:v1
+
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+        ephemeral-storage: "100Mi"
+
+      limits:
+        cpu: "200m"
+        memory: "256Mi"
+        ephemeral-storage: "200Mi"
