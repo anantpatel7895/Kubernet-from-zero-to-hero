@@ -7,12 +7,12 @@ metadata:
     project: k8s-02
 spec:
   replicas: 1
-  selector:           # ← SELECTOR: Which Pods to route to
+  selector:           # ← SELECTOR: Which Pods to route to. # <-- "I am looking for any Pods labeled 'app: payment-api'"
     matchLabels:
       app: fastapi
   template:
     metadata:
-      labels:              # ← LABELS: Matched by Service
+      labels:              # ← LABELS: Matched by Service # <-- "When I spin up new Pods, I stamp them with this exact label"
         app: fastapi
         version: v1
         tier: backend
