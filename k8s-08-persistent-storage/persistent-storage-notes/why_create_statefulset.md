@@ -1,5 +1,5 @@
 ╔══════════════════════════════════════════════════════════════════════╗
-║          WHY CREATE STATEFULSET REPLICAS?                           ║
+║          WHY CREATE STATEFULSET REPLICAS?                            ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
 🎯 SHORT ANSWER: For distributed system patterns!

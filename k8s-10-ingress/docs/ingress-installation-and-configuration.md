@@ -298,7 +298,7 @@ metadata:
   name: my-app-ingress
 ```
 
-Kubernetes stores the object in etcd.
+Kubernetes stores the object in **etcd**.
 
 The Ingress Controller continuously watches for:
 

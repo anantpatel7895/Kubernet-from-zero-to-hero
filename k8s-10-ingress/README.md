@@ -385,6 +385,25 @@ ingress-nginx namespace
 ```
 
 ---
+```bash
+Kubernet-from-zero-to-hero % kubectl get all -n ingress-nginx
+
+NAME                                           READY   STATUS    RESTARTS       AGE
+pod/ingress-nginx-controller-ffd4ff4d7-x9dfv   1/1     Running   6 (4d4h ago)   112d
+
+NAME                                         TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE
+service/ingress-nginx-controller             LoadBalancer   10.110.238.69   localhost     80:30590/TCP,443:31849/TCP   112d
+service/ingress-nginx-controller-admission   ClusterIP      10.99.54.204    <none>        443/TCP                      112d
+
+NAME                                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/ingress-nginx-controller   1/1     1            1           112d
+
+NAME                                                 DESIRED   CURRENT   READY   AGE
+replicaset.apps/ingress-nginx-controller-ffd4ff4d7   1         1         1       112d
+```
+
+
+---
 
 # 📌 Step 3 - Path-Based Routing
 
