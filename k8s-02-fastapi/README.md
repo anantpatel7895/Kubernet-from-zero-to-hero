@@ -66,8 +66,13 @@ kind load docker-image fastapi-demo:v1
 
 ### 2. Deploy Using Deployment (Single Replica)
 
-```bashcd k8s-02-fastapi
+```bash
+# change directory to project root
+cd k8s-02-fastapi
+
+# Build the Docker image
 docker build -f docker/Dockerfile -t fastapi-demo:v1 .
+
 # Apply the deployment
 kubectl apply -f k8s/deployment.yaml
 

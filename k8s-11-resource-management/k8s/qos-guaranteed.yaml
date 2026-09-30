@@ -1,0 +1,25 @@
+# QoS Class: Guaranteed
+# Rule: every container sets requests AND limits, and requests == limits
+#       for BOTH cpu and memory.
+# Result: highest priority, last to be evicted under node pressure.
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: qos-guaranteed
+  labels:
+    qos: guaranteed
+
+spec:
+  containers:
+  - name: app
+    image: loadtest:v1
+    ports:
+    - containerPort: 8000
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+      limits:
+        cpu: "250m"
+        memory: "256Mi"

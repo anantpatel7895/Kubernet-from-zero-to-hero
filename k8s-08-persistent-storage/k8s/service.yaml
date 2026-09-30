@@ -1,0 +1,18 @@
+# Service for Persistent Storage Demo
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: storage-demo-service
+  namespace: default
+  labels:
+    app: storage-demo
+spec:
+  type: ClusterIP
+  selector:
+    app: storage-demo
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http

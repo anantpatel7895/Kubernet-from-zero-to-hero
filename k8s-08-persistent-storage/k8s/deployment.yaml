@@ -1,0 +1,53 @@
+# Deployment using PersistentVolumeClaim
+# Demonstrates how to mount persistent storage in pods
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage-demo
+  namespace: default
+  labels:
+    app: storage-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: storage-demo
+  template:
+    metadata:
+      labels:
+        app: storage-demo
+    spec:
+      containers:
+      - name: app
+        image: storage-demo:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        
+        # Environment variable for storage path
+        env:
+        - name: STORAGE_PATH
+          value: "/data"
+        
+        # Mount the persistent volume
+        volumeMounts:
+        - name: storage
+          mountPath: /data  # Mount path in container
+        
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      
+      # Define the volume from PVC
+      volumes:
+      - name: storage
+        persistentVolumeClaim:
+          claimName: storage-demo-pvc  # Reference to PVC
+
+# The name under volumeMounts must exactly match the name of a volume defined under volumes

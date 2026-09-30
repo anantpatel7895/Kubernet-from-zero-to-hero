@@ -1,0 +1,13 @@
+# A dedicated namespace for the resource-management demos.
+#
+# WHY this matters:
+#   LimitRange and ResourceQuota are NAMESPACE-SCOPED. Applying them to the
+#   `default` namespace would silently affect every other workload there.
+#   Worse: once a ResourceQuota sets requests.cpu/requests.memory on a
+#   namespace, Kubernetes REJECTS any BestEffort Pod (one with no requests/
+#   limits) created in it. Isolating the demos here keeps that contained.
+apiVersion: v1
+kind: Namespace
+
+metadata:
+  name: resource-demo

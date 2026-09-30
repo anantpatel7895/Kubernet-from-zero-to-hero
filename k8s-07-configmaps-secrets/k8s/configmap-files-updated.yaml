@@ -1,0 +1,60 @@
+# Updated ConfigMap for files - demonstrating auto-sync to pods
+# Volume-mounted ConfigMaps are automatically updated in pods (with some delay)
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-files
+  namespace: default
+  labels:
+    app: config-demo
+data:
+  # UPDATED: Changed several values
+  app.properties: |
+    # Application Properties - UPDATED VERSION
+    app.name=ConfigMap Demo - File Updated!
+    app.version=2.0.0
+    app.description=Demonstrating auto-sync of volume-mounted ConfigMaps
+    
+    # Database Configuration (non-sensitive)
+    db.host=postgres-service-replica
+    db.port=5432
+    db.name=myapp_v2
+    db.pool.min=10
+    db.pool.max=50
+    
+    # Cache Configuration - Redis upgraded
+    cache.enabled=true
+    cache.ttl=7200
+    cache.provider=redis-cluster
+  
+  # UPDATED: Changed feature flags
+  features.json: |
+    {
+      "features": {
+        "new_ui": {
+          "enabled": true,
+          "rollout_percentage": 100,
+          "comment": "Fully rolled out!"
+        },
+        "beta_api": {
+          "enabled": true,
+          "rollout_percentage": 25,
+          "comment": "Testing with 25% of users"
+        },
+        "advanced_analytics": {
+          "enabled": true,
+          "rollout_percentage": 100
+        },
+        "ai_features": {
+          "enabled": true,
+          "rollout_percentage": 10,
+          "comment": "New feature - gradual rollout"
+        }
+      },
+      "limits": {
+        "max_requests_per_minute": 2000,
+        "max_concurrent_connections": 1000,
+        "comment": "Increased limits for production"
+      }
+    }

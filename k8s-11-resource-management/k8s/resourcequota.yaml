@@ -1,0 +1,31 @@
+# ResourceQuota caps the TOTAL resources a whole namespace can consume.
+# Once the sum of all Pod requests/limits hits these numbers, new Pods that
+# would exceed the quota are rejected at creation time.
+apiVersion: v1
+kind: ResourceQuota
+
+metadata:
+  name: namespace-quota
+  namespace: resource-demo
+
+spec:
+  hard:
+    # total of all container requests in the namespace
+    requests.cpu: "1"
+    requests.memory: "1Gi"
+
+    # total of all container limits in the namespace
+    limits.cpu: "2"
+    limits.memory: "2Gi"
+
+    # total ephemeral (disk) requests across the namespace
+    requests.ephemeral-storage: "2Gi"
+
+    # max number of pods
+    pods: "10"
+
+# NOTE: once this quota exists, EVERY new Pod in the namespace must declare
+# cpu/memory requests and limits. A BestEffort Pod (no requests/limits) will
+# be REJECTED. Apply the QoS demos BEFORE this quota, or give BestEffort its
+# own namespace.
+

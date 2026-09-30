@@ -278,7 +278,7 @@ Most modern production setups look like this:
                           ↓
               ┌───────────────────────┐
               │  DNS (Route53/Cloud   │
-              │   DNS) myapp.com       │
+              │   DNS) myapp.com      │
               └───────────┬───────────┘
                           ↓
               ┌───────────────────────┐

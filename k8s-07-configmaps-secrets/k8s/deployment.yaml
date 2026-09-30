@@ -16,11 +16,11 @@ spec:
   replicas: 2
   selector:
     matchLabels:
-      app: config-demo
-  template:
+      app: config-demo       # ← SELECTOR: How to find Pods
+  template:                   
     metadata:
       labels:
-        app: config-demo
+        app: config-demo     # ← LABELS: Applied to Pods
     spec:
       containers:
       - name: app
@@ -34,7 +34,7 @@ spec:
         # Each key in the ConfigMap becomes an environment variable
         envFrom:
         - configMapRef:
-            name: app-config
+            name: app-config  # this must be already be applied (available inside the kubernet) to kubernet
         
         # Method 2: Environment variables from Secret
         # Each key in the Secret becomes an environment variable

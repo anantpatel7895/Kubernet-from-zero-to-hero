@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: quota-demo
+
+spec:
+  replicas: 5
+
+  selector:
+    matchLabels:
+      app: quota-demo
+
+  template:
+    metadata:
+      labels:
+        app: quota-demo
+
+    spec:
+      containers:
+      - name: app
+
+        image: busybox
+
+        command:
+        - sh
+        - -c
+        - sleep 3600
+
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+
+          limits:
+            cpu: "500m"
+            memory: "512Mi"

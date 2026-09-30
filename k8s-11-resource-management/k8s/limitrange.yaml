@@ -1,0 +1,52 @@
+# LimitRange applies DEFAULT requests/limits to any container that does not
+# specify its own, and enforces min/max bounds. This is how a cluster admin
+# stops "BestEffort everywhere" from happening.
+#
+# `type` can be Container, Pod, or PersistentVolumeClaim:
+#   - Container : bounds apply to each container individually
+#   - Pod       : bounds apply to the SUM of all containers in a Pod
+#   - PersistentVolumeClaim : bounds the requested storage size
+apiVersion: v1
+kind: LimitRange
+
+metadata:
+  name: default-limits
+  namespace: resource-demo
+
+spec:
+  limits:
+  - type: Container
+
+    # used when a container omits limits
+    default:
+      cpu: "250m"
+      memory: "256Mi"
+
+    # used when a container omits requests
+    defaultRequest:
+      cpu: "100m"
+      memory: "128Mi"
+
+    # hard ceiling no container may exceed
+    max:
+      cpu: "1"
+      memory: "1Gi"
+
+    # floor every container must request
+    min:
+      cpu: "50m"
+      memory: "64Mi"
+
+    # limit / request may not exceed this ratio per resource.
+    # e.g. with memory request 128Mi, the limit may be at most 512Mi (4x).
+    # This caps how aggressively a Burstable Pod can overcommit.
+    maxLimitRequestRatio:
+      cpu: "4"
+      memory: "4"
+
+  # Example of a Pod-scoped rule: the SUM of all containers in one Pod
+  # may not exceed these limits.
+  - type: Pod
+    max:
+      cpu: "2"
+      memory: "2Gi"

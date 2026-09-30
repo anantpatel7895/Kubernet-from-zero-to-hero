@@ -1,0 +1,57 @@
+# PriorityClass affects scheduling and eviction ORDER, on top of QoS.
+#
+# QoS vs Priority — they work together:
+#   - QoS class   : decided automatically from requests/limits.
+#   - Priority    : an explicit number you assign via priorityClassName.
+#
+# Under node pressure the kubelet evicts by QoS first (BestEffort, then
+# Burstable, then Guaranteed); the scheduler uses priority to decide which
+# pending Pod to place first and which low-priority running Pods to PREEMPT
+# (evict) to make room for a higher-priority pending Pod.
+#
+# Higher value = more important. Reserve very large numbers for system pods.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+
+metadata:
+  name: high-priority
+
+value: 1000000
+globalDefault: false
+description: "Critical workloads — scheduled first, preempt lower-priority Pods."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+
+metadata:
+  name: low-priority
+
+value: 1000
+globalDefault: false
+description: "Best-effort batch jobs — first to be preempted under pressure."
+---
+# A Pod that opts into a PriorityClass.
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: important-app
+  namespace: resource-demo
+  labels:
+    app: important
+
+spec:
+  priorityClassName: high-priority
+  containers:
+  - name: app
+    image: loadtest:v1
+    ports:
+    - containerPort: 8000
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "250m"
+        memory: "256Mi"

@@ -1,0 +1,19 @@
+# QoS Class: BestEffort
+# Rule: NO requests and NO limits on any container.
+# Result: lowest priority, FIRST to be evicted when the node runs out
+#         of resources. Fine for non-critical, interruptible workloads.
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: qos-besteffort
+  labels:
+    qos: besteffort
+
+spec:
+  containers:
+  - name: app
+    image: loadtest:v1
+    ports:
+    - containerPort: 8000
+    # no resources block at all

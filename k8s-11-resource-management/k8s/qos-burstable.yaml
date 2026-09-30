@@ -1,0 +1,26 @@
+# QoS Class: Burstable
+# Rule: at least one container sets a request or limit, but it does NOT
+#       meet the Guaranteed criteria (requests != limits, or only one is set).
+# Result: medium priority. Can use spare node resources up to its limit,
+#         evicted before Guaranteed but after BestEffort.
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: qos-burstable
+  labels:
+    qos: burstable
+
+spec:
+  containers:
+  - name: app
+    image: loadtest:v1
+    ports:
+    - containerPort: 8000
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
