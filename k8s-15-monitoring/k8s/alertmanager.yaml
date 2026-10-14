@@ -1,0 +1,162 @@
+# Prometheus decides WHEN an alert fires.
+# Alertmanager decides WHO hears about it, and how often.
+#
+#   Prometheus  --fires-->  Alertmanager  --routes-->  Slack / email / PagerDuty
+#
+# The three jobs Alertmanager does that Prometheus deliberately does not:
+#   grouping     - one notification for 50 pods of the same deployment
+#   inhibition   - a critical alert silences the related warning
+#   silencing    - mute a known issue during a maintenance window
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+
+    # Templates for notification text would go here in production.
+    route:
+      # Alerts with the same alertname+severity are bundled into one message.
+      group_by: ["alertname", "severity"]
+      group_wait: 30s        # wait this long to collect more of the same group
+      group_interval: 5m     # then at most one update every 5m per group
+      repeat_interval: 4h    # re-notify about a still-firing alert this often
+      receiver: default
+
+      routes:
+      - matchers:
+        - severity = "critical"
+        receiver: critical
+        repeat_interval: 1h
+
+      - matchers:
+        - severity = "info"
+        receiver: "null"     # swallow info-level noise
+
+    receivers:
+    # A webhook receiver that points nowhere is fine for a lab - the alert
+    # still shows up in the Alertmanager UI. Swap in slack_configs /
+    # pagerduty_configs / email_configs for real use.
+    - name: default
+      webhook_configs:
+      - url: http://localhost:9094/noop
+        send_resolved: true
+
+    - name: critical
+      webhook_configs:
+      - url: http://localhost:9094/critical
+        send_resolved: true
+
+    - name: "null"
+
+    # If a node is down, don't also page about every pod on it.
+    inhibit_rules:
+    - source_matchers:
+      - severity = "critical"
+      target_matchers:
+      - severity = "warning"
+      equal: ["alertname", "namespace"]
+---
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: alertmanager
+
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9093"
+
+    spec:
+      containers:
+      - name: alertmanager
+        image: prom/alertmanager:v0.27.0
+
+        args:
+        - --config.file=/etc/alertmanager/alertmanager.yml
+        - --storage.path=/alertmanager
+
+        ports:
+        - name: http
+          containerPort: 9093
+
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+
+        volumeMounts:
+        - name: config
+          mountPath: /etc/alertmanager
+        - name: storage
+          mountPath: /alertmanager
+
+      volumes:
+      - name: config
+        configMap:
+          name: alertmanager-config
+      - name: storage
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: alertmanager
+  namespace: monitoring
+
+spec:
+  type: ClusterIP
+  selector:
+    app: alertmanager
+  ports:
+  - name: http
+    port: 9093
+    targetPort: http
+---
+# UI at http://localhost:30093
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: alertmanager-nodeport
+  namespace: monitoring
+
+spec:
+  type: NodePort
+  selector:
+    app: alertmanager
+  ports:
+  - name: http
+    port: 9093
+    targetPort: http
+    nodePort: 30093

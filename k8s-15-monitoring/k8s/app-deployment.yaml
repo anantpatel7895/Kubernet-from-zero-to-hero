@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: metrics-app
+  namespace: monitoring
+  labels:
+    app: metrics-app
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: metrics-app
+
+  template:
+    metadata:
+      labels:
+        app: metrics-app
+
+      # ---------------------------------------------------------------
+      # These three annotations are the WHOLE contract with Prometheus
+      # in the annotation-based service discovery model.
+      #
+      # The annotations do nothing on their own. They only matter because
+      # prometheus-config.yaml has relabel rules in the `kubernetes-pods`
+      # job that read them:
+      #
+      #   scrape = "true"  -> keep this pod as a target
+      #   path             -> which URL to GET
+      #   port             -> which container port to GET it on
+      # ---------------------------------------------------------------
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8000"
+
+    spec:
+      containers:
+      - name: metrics-app
+
+        image: metrics-app:v1
+        imagePullPolicy: IfNotPresent   # use the locally built image
+
+        ports:
+        - name: http
+          containerPort: 8000
+
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 15

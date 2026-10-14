@@ -16,6 +16,7 @@ import socket
 import json
 
 # Storage directory (will be mounted from PVC)
+# it will be created inside the container if it doesn't exist
 STORAGE_DIR = Path(os.getenv("STORAGE_PATH", "/data"))
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 

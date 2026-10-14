@@ -1,0 +1,12 @@
+# Everything in this project lives in one namespace so that
+#   kubectl delete namespace monitoring
+# removes the whole stack in a single command.
+#
+# Note: the RBAC objects (ClusterRole / ClusterRoleBinding) are cluster-scoped
+# and are NOT deleted by removing the namespace - delete them separately.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring

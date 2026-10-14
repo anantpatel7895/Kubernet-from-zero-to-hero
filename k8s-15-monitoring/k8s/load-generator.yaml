@@ -1,0 +1,58 @@
+# A flat dashboard teaches nothing. This Pod drives continuous traffic at
+# metrics-app so every panel and every alert rule has data to work with.
+#
+#   kubectl scale deploy/load-generator -n monitoring --replicas=0   # stop
+#   kubectl scale deploy/load-generator -n monitoring --replicas=1   # start
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: load-generator
+  namespace: monitoring
+  labels:
+    app: load-generator
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: load-generator
+
+  template:
+    metadata:
+      labels:
+        app: load-generator
+
+    spec:
+      containers:
+      - name: curl
+        image: curlimages/curl:8.10.1
+
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          # Mostly healthy traffic, with a steady trickle of slow and failing
+          # requests so error-rate and p95 panels are never zero.
+          # A plain counter is used instead of $RANDOM - busybox ash does not
+          # always have it, and a silent crash loop here is hard to spot.
+          i=0
+          while true; do
+            i=$((i + 1))
+            curl -s -o /dev/null http://metrics-app:8000/work
+            curl -s -o /dev/null http://metrics-app:8000/work
+            curl -s -o /dev/null http://metrics-app:8000/flaky
+            curl -s -o /dev/null "http://metrics-app:8000/queue?n=$((i % 50))"
+            if [ $((i % 10)) -eq 0 ]; then
+              curl -s -o /dev/null http://metrics-app:8000/slow
+            fi
+            sleep 1
+          done
+
+        resources:
+          requests:
+            cpu: "20m"
+            memory: "32Mi"
+          limits:
+            cpu: "100m"
+            memory: "64Mi"

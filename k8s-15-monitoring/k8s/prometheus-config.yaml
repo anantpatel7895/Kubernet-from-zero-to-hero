@@ -1,0 +1,162 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+
+data:
+  # =========================================================================
+  # prometheus.yml - the main configuration file
+  #
+  # Three things live here:
+  #   global          -> how often to scrape and evaluate rules
+  #   alerting        -> where to send firing alerts (Alertmanager)
+  #   rule_files      -> recording + alerting rules
+  #   scrape_configs  -> WHAT to scrape and HOW to find it
+  # =========================================================================
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s          # how often to pull /metrics
+      evaluation_interval: 15s      # how often to evaluate rules
+      external_labels:
+        cluster: local
+
+    alerting:
+      alertmanagers:
+      - static_configs:
+        - targets:
+          - alertmanager:9093
+
+    rule_files:
+    - /etc/prometheus/rules/*.yml
+
+    scrape_configs:
+
+    # ---------------------------------------------------------------------
+    # 1. Prometheus scraping itself. Always keep this - it is how you know
+    #    Prometheus is alive and how fast its own rule evaluation is.
+    # ---------------------------------------------------------------------
+    - job_name: prometheus
+      static_configs:
+      - targets: ["localhost:9090"]
+
+    # ---------------------------------------------------------------------
+    # 2. The Kubernetes API server.
+    #    Discovered via the `endpoints` role, then filtered down to the one
+    #    endpoint that belongs to the default/kubernetes service.
+    # ---------------------------------------------------------------------
+    - job_name: kubernetes-apiservers
+      kubernetes_sd_configs:
+      - role: endpoints
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+      authorization:
+        credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      relabel_configs:
+      - source_labels:
+        - __meta_kubernetes_namespace
+        - __meta_kubernetes_service_name
+        - __meta_kubernetes_endpoint_port_name
+        action: keep
+        regex: default;kubernetes;https
+
+    # ---------------------------------------------------------------------
+    # 3. The kubelet on every node (node-level metrics).
+    # ---------------------------------------------------------------------
+    - job_name: kubernetes-nodes
+      kubernetes_sd_configs:
+      - role: node
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+      authorization:
+        credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      relabel_configs:
+      # Turn every node label into a Prometheus label.
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      # Scrape through the API server proxy so this works even when the
+      # kubelet port is not reachable from the Pod network.
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics
+
+    # ---------------------------------------------------------------------
+    # 4. cAdvisor - per-CONTAINER cpu/memory/network usage.
+    #    This is where container_cpu_usage_seconds_total comes from.
+    # ---------------------------------------------------------------------
+    - job_name: kubernetes-cadvisor
+      kubernetes_sd_configs:
+      - role: node
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+      authorization:
+        credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+
+    # ---------------------------------------------------------------------
+    # 5. Any Pod that opts in with annotations.
+    #    THIS is the job that finds metrics-app, node-exporter and
+    #    kube-state-metrics. Read the relabel rules top to bottom - they are
+    #    the heart of Prometheus service discovery.
+    # ---------------------------------------------------------------------
+    - job_name: kubernetes-pods
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+
+      # (a) Drop every pod that does not have prometheus.io/scrape: "true".
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+
+      # (b) Override the metrics path if prometheus.io/path is set.
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+
+      # (c) Rewrite the address to pod_ip:annotated_port.
+      #     __address__ arrives as "10.1.0.42:8000"; we replace the port.
+      - source_labels:
+        - __address__
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+
+      # (d) Copy useful Kubernetes metadata onto every sample.
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: pod
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        action: replace
+        target_label: node
+
+      # (e) Never scrape a pod that is not running.
+      - source_labels: [__meta_kubernetes_pod_phase]
+        action: drop
+        regex: (Pending|Succeeded|Failed|Unknown)

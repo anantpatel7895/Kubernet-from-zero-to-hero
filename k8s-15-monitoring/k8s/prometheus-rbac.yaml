@@ -1,0 +1,49 @@
+# Prometheus does not get magic access to the Kubernetes API.
+# To discover targets it must be allowed to LIST and WATCH the API,
+# and to scrape the kubelet it needs the `nodes/metrics` subresource.
+#
+# This is the classic "why are all my targets missing?" bug:
+# the ServiceAccount exists, but the ClusterRoleBinding points at the
+# wrong namespace.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+# Service discovery: Prometheus watches these objects to build its target list.
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - nodes/metrics
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch"]
+
+# Needed for the `kubernetes-apiservers` and kubelet scrape jobs.
+- nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: monitoring      # must match where the ServiceAccount lives

@@ -1,0 +1,51 @@
+# Grafana can be configured entirely from files ("provisioning") instead of
+# by clicking in the UI. That matters because a Pod is disposable: anything
+# you click into a Grafana running on an emptyDir disappears on restart.
+#
+# Two provisioning files here:
+#   datasources/  -> where to read metrics FROM
+#   dashboards/   -> where to load dashboard JSON from
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+
+data:
+  datasources.yaml: |
+    apiVersion: 1
+
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      uid: prometheus        # dashboards reference the datasource by this uid
+      access: proxy          # Grafana's SERVER calls Prometheus, not your browser
+      # In-cluster DNS: <service>.<namespace>.svc.cluster.local
+      url: http://prometheus.monitoring.svc.cluster.local:9090
+      isDefault: true
+      editable: true
+      jsonData:
+        timeInterval: 15s    # should match Prometheus scrape_interval
+---
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: grafana-dashboard-provider
+  namespace: monitoring
+
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+
+    providers:
+    - name: default
+      orgId: 1
+      folder: "Kubernetes"
+      type: file
+      disableDeletion: false
+      updateIntervalSeconds: 30
+      allowUiUpdates: true
+      options:
+        path: /var/lib/grafana/dashboards

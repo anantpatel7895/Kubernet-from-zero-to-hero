@@ -1,0 +1,68 @@
+# ---------------------------------------------------------------------------
+# NOT applied by the smoke test. This file only works if the Prometheus
+# OPERATOR (kube-prometheus-stack) is installed, because ServiceMonitor is a
+# CustomResourceDefinition that the operator brings with it.
+#
+# It is here for comparison. Everything this project does by hand -
+# writing scrape_configs with relabel rules into a ConfigMap - the operator
+# does for you from objects like this one:
+#
+#   ServiceMonitor  -> scrape a Service's endpoints
+#   PodMonitor      -> scrape Pods directly
+#   PrometheusRule  -> recording + alerting rules
+#   Prometheus      -> the Prometheus server itself
+#
+# Install the operator with:
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm install kps prometheus-community/kube-prometheus-stack -n monitoring
+# ---------------------------------------------------------------------------
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+
+metadata:
+  name: metrics-app
+  namespace: monitoring
+  labels:
+    # The operator's Prometheus CR selects ServiceMonitors by label.
+    # Get this label wrong and your target silently never appears.
+    release: kps
+
+spec:
+  # Which Services to scrape - matched by their LABELS, not their names.
+  selector:
+    matchLabels:
+      app: metrics-app
+
+  namespaceSelector:
+    matchNames:
+    - monitoring
+
+  endpoints:
+  - port: http          # the NAME of the service port, not the number
+    path: /metrics
+    interval: 15s
+    scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+
+metadata:
+  name: metrics-app-rules
+  namespace: monitoring
+  labels:
+    release: kps
+
+spec:
+  groups:
+  - name: metrics-app.alerts
+    rules:
+    - alert: HighErrorRate
+      expr: |
+        sum(rate(http_requests_total{status=~"5.."}[5m]))
+          /
+        sum(rate(http_requests_total[5m])) > 0.05
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "High 5xx error rate on metrics-app"

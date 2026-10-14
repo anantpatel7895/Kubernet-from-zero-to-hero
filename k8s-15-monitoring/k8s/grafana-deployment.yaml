@@ -1,0 +1,152 @@
+# Grafana never stores metrics. It is a QUERY + RENDER layer:
+#
+#   browser -> Grafana -> PromQL -> Prometheus -> TSDB
+#
+# Delete Grafana and you lose dashboards, not data.
+apiVersion: v1
+kind: Secret
+
+metadata:
+  name: grafana-admin
+  namespace: monitoring
+
+type: Opaque
+stringData:
+  # Lab credentials only. In production this comes from a real secret store
+  # (Sealed Secrets, External Secrets, Vault) - never from a file in git.
+  admin-user: admin
+  admin-password: admin
+---
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: grafana
+
+  template:
+    metadata:
+      labels:
+        app: grafana
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+
+    spec:
+      securityContext:
+        fsGroup: 472           # the grafana user inside the image
+        runAsUser: 472
+        runAsNonRoot: true
+
+      containers:
+      - name: grafana
+        image: grafana/grafana:11.3.1
+
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: grafana-admin
+              key: admin-user
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: grafana-admin
+              key: admin-password
+        # Skip the "install plugins" network call so the Pod starts offline.
+        - name: GF_INSTALL_PLUGINS
+          value: ""
+        - name: GF_USERS_ALLOW_SIGN_UP
+          value: "false"
+
+        ports:
+        - name: http
+          containerPort: 3000
+
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 15
+
+        volumeMounts:
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: dashboard-provider
+          mountPath: /etc/grafana/provisioning/dashboards
+        - name: dashboards
+          mountPath: /var/lib/grafana/dashboards
+        - name: storage
+          mountPath: /var/lib/grafana
+
+      volumes:
+      - name: datasources
+        configMap:
+          name: grafana-datasources
+      - name: dashboard-provider
+        configMap:
+          name: grafana-dashboard-provider
+      - name: dashboards
+        configMap:
+          name: grafana-dashboard-metrics-app
+      - name: storage
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: grafana
+  namespace: monitoring
+
+spec:
+  type: ClusterIP
+  selector:
+    app: grafana
+  ports:
+  - name: http
+    port: 3000
+    targetPort: http
+---
+# UI at http://localhost:30030   (admin / admin)
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: grafana-nodeport
+  namespace: monitoring
+
+spec:
+  type: NodePort
+  selector:
+    app: grafana
+  ports:
+  - name: http
+    port: 3000
+    targetPort: http
+    nodePort: 30030

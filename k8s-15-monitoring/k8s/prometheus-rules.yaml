@@ -1,0 +1,154 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+
+data:
+  # =========================================================================
+  # Two kinds of rules live in the same file format:
+  #
+  #   record: -> pre-compute an expensive query and store it as a new metric
+  #   alert:  -> evaluate a condition; if true for `for:`, fire an alert
+  #
+  # Prometheus evaluates every group once per `evaluation_interval`.
+  # =========================================================================
+  app.rules.yml: |
+    groups:
+
+    # -------------------------------------------------------------------
+    # Recording rules.
+    #
+    # Dashboards that recompute rate(...) over 2 weeks of data are slow.
+    # Pre-compute the expression once, query the cheap result everywhere.
+    #
+    # Naming convention: level:metric:operation
+    # -------------------------------------------------------------------
+    - name: metrics-app.recording
+      interval: 15s
+      rules:
+
+      - record: job:http_requests:rate5m
+        expr: sum by (job) (rate(http_requests_total[5m]))
+
+      - record: job:http_errors:rate5m
+        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m]))
+
+      - record: job:http_error_ratio:rate5m
+        expr: |
+          job:http_errors:rate5m
+            /
+          clamp_min(job:http_requests:rate5m, 1e-10)
+
+      - record: job:http_latency_p95:5m
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (job, le) (rate(http_request_duration_seconds_bucket[5m]))
+          )
+
+    # -------------------------------------------------------------------
+    # Alerting rules.
+    #
+    # `for:` is the single most important field. Without it, one bad scrape
+    # pages you at 3am. With it, the condition must hold continuously.
+    #
+    # Alert on SYMPTOMS the user feels (errors, latency), not on causes
+    # (high CPU) - that is the core idea behind the Golden Signals.
+    # -------------------------------------------------------------------
+    - name: metrics-app.alerts
+      rules:
+
+      - alert: HighErrorRate
+        expr: job:http_error_ratio:rate5m > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High 5xx error rate on {{ $labels.job }}"
+          description: "{{ $labels.job }} is serving {{ $value | humanizePercentage }} errors (threshold 5%) for 2 minutes."
+
+      - alert: HighLatency
+        expr: job:http_latency_p95:5m > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 latency above 1s on {{ $labels.job }}"
+          description: "p95 latency is {{ $value | humanizeDuration }}."
+
+      - alert: NoTraffic
+        expr: job:http_requests:rate5m == 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "No requests reaching {{ $labels.job }}"
+          description: "The app has served zero requests for 10 minutes - broken Ingress, or just an idle lab."
+
+  kubernetes.rules.yml: |
+    groups:
+
+    - name: kubernetes.alerts
+      rules:
+
+      # A target Prometheus knows about but cannot scrape.
+      # `up` is synthesised by Prometheus itself: 1 = scrape OK, 0 = failed.
+      - alert: TargetDown
+        expr: up == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target {{ $labels.job }} / {{ $labels.instance }} is down"
+          description: "Prometheus has failed to scrape this target for 3 minutes."
+
+      - alert: PodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total[10m]) * 600 > 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+          description: "The container has restarted more than twice in 10 minutes."
+
+      - alert: PodNotReady
+        expr: |
+          sum by (namespace, pod) (
+            kube_pod_status_phase{phase=~"Pending|Unknown"}
+          ) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} not ready"
+          description: "The pod has been Pending or Unknown for 10 minutes."
+
+      - alert: ContainerMemoryNearLimit
+        expr: |
+          container_memory_working_set_bytes{container!="", container!="POD"}
+            /
+          clamp_min(
+            kube_pod_container_resource_limits{resource="memory"}, 1
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.namespace }}/{{ $labels.pod }} is near its memory limit"
+          description: "Working set is above 90% of the limit - OOMKill is likely next."
+
+      - alert: NodeHighCPU
+        expr: |
+          100 * (
+            1 - avg by (instance) (
+              rate(node_cpu_seconds_total{mode="idle"}[5m])
+            )
+          ) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node {{ $labels.instance }} CPU above 85%"
+          description: "Sustained high CPU for 10 minutes."
